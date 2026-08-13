@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+  <!-- Preload critical assets -->
+  <link rel="preload" as="image" href="/assets/hero-bg.png" />
+  <link rel="preload" as="image" href="/assets/ornament-border.png" />
+
+  <!-- SEO -->
+  <title>Frame In Goa — HH Goa 2026 Builder Frame & ID Card Generator</title>
+  <meta name="description" content="Generate your personalized Hacker House Goa 2026 builder frame, VIP ID card, and team banner. Upload your photo and share with #FrameInGoa." />
+  <meta name="keywords" content="Hacker House Goa, HH Goa 2026, FrameInGoa, frame generator, builder ID, boarding pass, ID card, hackathon" />
+
+  <meta property="og:title" content="Frame In Goa — HH Goa 2026 Builder Frame Generator" />
+  <meta property="og:description" content="Get your HH Goa 2026 builder frame. Drop a pic, grab your pass. #FrameInGoa" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <meta name="theme-color" content="#0B6839" />
+
+  <!-- Favicon (green square) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230B6839'/><text x='50' y='68' text-anchor='middle' fill='%2300FF88' font-size='40' font-family='sans-serif' font-weight='bold'>HH</text></svg>" />
+
+  <!-- ID Card Dependencies -->
+  <link href="https://fonts.googleapis.com/css2?family=Rye&family=Space+Grotesk:wght@700;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      corePlugins: {
+        preflight: false, // Prevent Tailwind from resetting global styles
+      }
+    }
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  
+  <style>
+    .font-serif-custom { font-family: 'Rye', serif; }
+    .font-sans-custom { font-family: 'Space Grotesk', sans-serif; }
+    .barcode {
+        background: repeating-linear-gradient(
+            90deg, 
+            #003B24 0, #003B24 3px, 
+            transparent 3px, transparent 5px, 
+            #003B24 5px, #003B24 6px, 
+            transparent 6px, transparent 9px
+        );
+    }
+  </style>
+</head>
+<body class="generator-page">
+
+  <!-- ==================== HEADER ==================== -->
+  <header class="site-header" id="site-header">
+    <div class="container header-inner">
+      <button class="logo-lockup" id="site-logo">
+        <img src="/assets/hacker-goa-house-logo.svg" alt="Hacker Goa House" style="height: 48px; width: auto; margin-right: 12px;">
+        <div class="logo-text" style="display: flex; flex-direction: column; align-items: flex-start; justify-content: center; text-align: left;">
+          <strong style="color: var(--secondary); font-size: 1.1rem; font-family: var(--f-heading); text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.2;">HACKER GOA HOUSE</strong>
+          <span style="color: white; font-size: 0.75rem; font-family: var(--f-sans); line-height: 1.2; font-weight: 500;">Builder Social Card Generator</span>
+        </div>
+      </button>
+      <nav class="header-nav">
+        <a href="https://hhgoa.com/" target="_blank" rel="noopener noreferrer" class="btn-apply" id="btn-apply">Apply</a>
+      </nav>
+    </div>
+  </header>
+
+
+
+  <!-- ==================== FRAME GENERATOR ==================== -->
+  <section class="generator-section" id="generator-section">
+    <div class="container">
+      <div style="text-align: center; margin-bottom: 1rem;">
+        <img src="/assets/Hacker house.png" alt="Hacker House Goa" style="max-width: 80%; height: auto; max-height: 120px; margin: 0 auto;" />
+      </div>
+      <div class="section-label reveal-up" style="text-align: center; margin-bottom: 0.5rem;">✦ FRAME GENERATOR</div>
+      <h2 class="section-title reveal-up" style="text-align: center; font-size: 2rem; margin-bottom: 0.5rem;">BUILD YOUR IDENTITY</h2>
+      <p class="section-subtitle reveal-up" style="text-align: center; font-size: 0.9rem; max-width: 450px; margin: 0 auto 2rem auto;">Upload your photo, enter your details, and generate your official HH Goa 2026 builder frame in seconds.</p>
+
+      <div class="generator-layout">
+        <!-- Left: Upload & Form -->
+        <div class="upload-panel reveal-left">
+          <!-- Compact Upload Zone -->
+          <div class="upload-zone" id="upload-zone">
+            <div class="upload-icon">📸</div>
+            <div class="upload-text">Drop your photo here</div>
+            <div class="upload-hint">or click to browse · PNG, JPG · any size</div>
+          </div>
+          <input type="file" id="photo-input" accept="image/*" />
+
+          <!-- Photo Editor (appears after upload) -->
+          <div class="photo-editor" id="photo-editor" style="display: none;">
+            <div class="photo-editor-preview">
+              <div class="photo-circle-wrap" id="photo-circle-wrap">
+                <img id="upload-preview" alt="Your photo" />
+                <div class="drag-badge">DRAG</div>
+              </div>
+            </div>
+            <div class="photo-editor-controls">
+              <div class="zoom-row">
+                <span class="zoom-label">Zoom</span>
+                <input type="range" id="photo-zoom" min="1" max="3" step="0.05" value="1" class="zoom-slider" />
+                <button type="button" class="btn-reset-zoom" id="btn-reset-zoom">Reset</button>
+              </div>
+              <button type="button" class="btn-change-photo" id="btn-change-photo">Change Photo</button>
+              <p class="drag-hint">💡 Drag inside the circle to position your photo.</p>
+            </div>
+          </div>
+
+          <!-- Separator -->
+          <div class="form-divider"></div>
+
+          <form class="gen-form" id="gen-form">
+            <div class="form-group">
+              <label for="builder-name">Your Name</label>
+              <input type="text" id="builder-name" placeholder="e.g. Niranjan" maxlength="30" />
+            </div>
+
+            <div class="form-group">
+              <label for="builder-stack">Tech Stack</label>
+              <select id="builder-stack">
+                <option value="">Select your stack</option>
+                <option value="react">React / Next.js</option>
+                <option value="vue">Vue / Nuxt</option>
+                <option value="angular">Angular</option>
+                <option value="svelte">Svelte / SvelteKit</option>
+                <option value="node">Node.js / Express</option>
+                <option value="python">Python / Django / FastAPI</option>
+                <option value="go">Go / Gin</option>
+                <option value="rust">Rust</option>
+                <option value="java">Java / Spring</option>
+                <option value="ml">ML / AI / Data Science</option>
+                <option value="web3">Solidity / Web3</option>
+                <option value="fullstack">Full-Stack</option>
+                <option value="mobile">Mobile (Flutter / RN)</option>
+                <option value="devops">DevOps / Cloud</option>
+                <option value="design">UI/UX Design</option>
+                <option value="systems">Systems / Low-level</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="builder-stack-custom">Custom Stack Label</label>
+              <input type="text" id="builder-stack-custom" placeholder="e.g. React + Rust + WASM" maxlength="30" />
+            </div>
+
+            <div class="builder-class-display" id="builder-class">
+              ✦ <span id="builder-class-text">Select a stack to see your Builder Class</span>
+            </div>
+
+            <div class="gen-actions">
+              <button type="button" class="btn-generate" id="btn-gen-frame" disabled>
+                Generate Frame ✦
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Right: Previews -->
+        <div class="preview-panel reveal-right">
+          
+
+
+          <!-- Profile Frame Preview -->
+          <div class="preview-card" id="frame-preview-card" style="display: none;">
+            <div class="preview-card-header">
+              <span class="preview-card-title">Profile Frame</span>
+              <span class="preview-card-dim">1024 × 1535</span>
+            </div>
+            <div class="preview-canvas-wrap" id="frame-canvas-wrap">
+              <div class="preview-placeholder">Your frame will appear here ✦</div>
+              <canvas id="frame-canvas" width="1024" height="1535" style="display:none; width: 100%; height: auto;"></canvas>
+            </div>
+            <div class="preview-actions">
+              <button class="btn-download" id="btn-dl-frame" disabled><img src="/assets/download-icon.webp" alt="Download" style="width: 16px; height: 16px; vertical-align: middle; display: inline-block; margin-right: 4px;" /> Download Frame</button>
+              <button class="btn-share" id="btn-share-frame" disabled><img src="/assets/x-icon.webp" alt="X" style="width: 16px; height: 16px; vertical-align: middle; display: inline-block; margin-right: 4px;" /> Share to X</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- Toast notification -->
+  <div class="toast" id="toast"></div>
+
+  <!-- App entry -->
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+  <!-- Preload critical assets -->
+  <link rel="preload" as="image" href="/assets/hero-bg.png" />
+  <link rel="preload" as="image" href="/assets/ornament-border.png" />
+
+  <!-- SEO -->
+  <title>Frame In Goa — HH Goa 2026 Builder Frame & ID Card Generator</title>
+  <meta name="description" content="Generate your personalized Hacker House Goa 2026 builder frame, VIP ID card, and team banner. Upload your photo and share with #FrameInGoa." />
+  <meta name="keywords" content="Hacker House Goa, HH Goa 2026, FrameInGoa, frame generator, builder ID, boarding pass, ID card, hackathon" />
+
+  <meta property="og:title" content="Frame In Goa — HH Goa 2026 Builder Frame Generator" />
+  <meta property="og:description" content="Get your HH Goa 2026 builder frame. Drop a pic, grab your pass. #FrameInGoa" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <meta name="theme-color" content="#0B6839" />
+
+  <!-- Favicon (green square) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230B6839'/><text x='50' y='68' text-anchor='middle' fill='%2300FF88' font-size='40' font-family='sans-serif' font-weight='bold'>HH</text></svg>" />
+</head>
+<body class="landing-page">
+
+  <!-- ==================== HEADER ==================== -->
+  <header class="site-header" id="site-header">
+    <div class="container header-inner">
+      <button class="logo-lockup" id="site-logo">
+        <img src="/assets/hacker-goa-house-logo.svg" alt="Hacker Goa House" style="height: 48px; width: auto; margin-right: 12px;">
+        <div class="logo-text" style="display: flex; flex-direction: column; align-items: flex-start; justify-content: center; text-align: left;">
+          <strong style="color: var(--secondary); font-size: 1.1rem; font-family: var(--f-heading); text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.2;">HACKER GOA HOUSE</strong>
+          <span style="color: white; font-size: 0.75rem; font-family: var(--f-sans); line-height: 1.2; font-weight: 500;">Builder Social Card Generator</span>
+        </div>
+      </button>
+      <nav class="header-nav">
+        <a href="https://hhgoa.com/" target="_blank" rel="noopener noreferrer" class="btn-apply" id="btn-apply">Apply</a>
+      </nav>
+    </div>
+  </header>
+
+
+
+
+  <!-- ==================== LANDING HERO ==================== -->
+  <section class="hero-landing" id="hero-landing">
+    <div class="container hero-content">
+      <div class="section-label reveal-up">✦ HH GOA 2026 ✦</div>
+      <h1 class="hero-title reveal-up">
+        <img src="/assets/179-vector-54-30944.svg" alt="Frame in Goa" style="max-height: 250px; max-width: 100%; display: inline-block;" />
+      </h1>
+      <p class="hero-subtitle reveal-up">Ready to build at India's biggest hack-station? Get your personalized Builder Frame and ID Card now.</p>
+      
+      <div class="hero-cta-row reveal-up">
+        <a href="generate.html" class="btn-cta-primary">Generate Frame & Card ✦</a>
+      </div>
+    </div>
+  </section>
+  <!-- Toast notification -->
+  <div class="toast" id="toast"></div>
+
+  <!-- App entry -->
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
