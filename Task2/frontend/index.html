@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voice RAG — HH Goa 2026 | #RAGInGoa</title>
+  <meta name="description" content="Speak a question in Hindi, get a grounded, cited answer from MSMARCO-XI. Voice-Enabled RAG Pipeline for Hacker House Goa 2026." />
+
+  <!-- Google Fonts — matching Task 1 visual language -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <!-- ── Background Grid ─────────────────────────────────── -->
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="bg-glow" aria-hidden="true"></div>
+
+  <!-- ── Header ──────────────────────────────────────────── -->
+  <header class="header" id="header">
+    <div class="header__logo">
+      <span class="header__icon">🎙️</span>
+      <h1 class="header__title">VOICE<span class="accent">RAG</span></h1>
+    </div>
+    <div class="header__badges">
+      <span class="badge badge--primary">#RAGInGoa</span>
+      <span class="badge badge--accent">HH GOA 2026</span>
+      <span class="badge badge--outline" id="badge-language">Hindi</span>
+    </div>
+  </header>
+
+  <!-- ── Main Content ────────────────────────────────────── -->
+  <main class="main" id="main">
+
+    <!-- ── Mic Section ─────────────────────────────────── -->
+    <section class="mic-section" id="mic-section">
+      <p class="mic-section__hint">हिंदी में बोलें — Speak in Hindi</p>
+
+      <button class="mic-btn" id="mic-btn" aria-label="Record voice query">
+        <svg class="mic-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="23"/>
+          <line x1="8" y1="23" x2="16" y2="23"/>
+        </svg>
+        <div class="mic-btn__pulse" aria-hidden="true"></div>
+        <div class="mic-btn__rings" aria-hidden="true">
+          <div class="ring ring--1"></div>
+          <div class="ring ring--2"></div>
+          <div class="ring ring--3"></div>
+        </div>
+      </button>
+
+      <p class="mic-section__status" id="mic-status">Tap to speak</p>
+
+      <!-- Text fallback input -->
+      <div class="text-input-row" id="text-input-row">
+        <input type="text" class="text-input" id="text-input" placeholder="या यहाँ टाइप करें... (or type here)" />
+        <button class="text-send-btn" id="text-send-btn" aria-label="Send text query">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- ── Transcript ──────────────────────────────────── -->
+    <section class="transcript-section hidden" id="transcript-section">
+      <div class="section-label">TRANSCRIPT</div>
+      <p class="transcript-text" id="transcript-text"></p>
+    </section>
+
+    <!-- ── Answer Card (happy path) ────────────────────── -->
+    <section class="answer-card hidden" id="answer-card">
+      <div class="section-label">ANSWER</div>
+      <div class="answer-card__body">
+        <p class="answer-text" id="answer-text"></p>
+        <div class="citations" id="citations"></div>
+      </div>
+      <div class="answer-card__meta">
+        <div class="strategy-stats" id="strategy-stats"></div>
+      </div>
+    </section>
+
+    <!-- ── Guardrail Declined Card ─────────────────────── -->
+    <section class="decline-card hidden" id="decline-card">
+      <div class="section-label section-label--warn">GUARDRAIL</div>
+      <div class="decline-card__body">
+        <div class="decline-icon">🛡️</div>
+        <p class="decline-reason" id="decline-reason"></p>
+        <div class="decline-meta" id="decline-meta"></div>
+      </div>
+    </section>
+
+    <!-- ── Latency Readout ─────────────────────────────── -->
+    <section class="latency-bar" id="latency-bar">
+      <div class="latency-item">
+        <span class="latency-label">P50</span>
+        <span class="latency-value" id="lat-p50">—</span>
+      </div>
+      <div class="latency-item">
+        <span class="latency-label">P70</span>
+        <span class="latency-value" id="lat-p70">—</span>
+      </div>
+      <div class="latency-item">
+        <span class="latency-label">P100</span>
+        <span class="latency-value" id="lat-p100">—</span>
+      </div>
+      <div class="latency-item">
+        <span class="latency-label">THIS</span>
+        <span class="latency-value latency-value--this" id="lat-this">—</span>
+      </div>
+      <div class="latency-item">
+        <span class="latency-label">QUERIES</span>
+        <span class="latency-value" id="lat-count">0</span>
+      </div>
+    </section>
+
+    <!-- ── Per-query latency breakdown ─────────────────── -->
+    <section class="breakdown hidden" id="breakdown">
+      <div class="section-label">LATENCY BREAKDOWN</div>
+      <div class="breakdown__grid" id="breakdown-grid"></div>
+    </section>
+
+  </main>
+
+  <!-- ── Footer ──────────────────────────────────────────── -->
+  <footer class="footer">
+    <span>HH Goa 2026 · Task 2 · Voice RAG Pipeline</span>
+    <span class="footer__dot">•</span>
+    <span>#RAGInGoa</span>
+  </footer>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
