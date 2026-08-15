@@ -109,7 +109,7 @@ async def check_groundedness(
         context = "\n".join([f"[{r.passage_id}]: {r.chunk_text[:200]}" for r in chunks])
 
         response = await client.chat.completions.create(
-            model="llama-3.1-8b-instant",  # Use smaller/faster model for check
+            model=settings.generation_model,  # Use main model instead of deprecated one
             messages=[
                 {
                     "role": "system",

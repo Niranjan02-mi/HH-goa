@@ -44,6 +44,12 @@ class Chunk(BaseModel):
     query_id: str = ""
     query_type: str = ""
     language: str = "hi"
+    language_name: str | None = None
+    source_lang: str | None = None
+    target_lang: str | None = None
+    english_text: str | None = None
+    passage_index: int | None = None
+    is_selected: int | None = None
     # For sentence-window: neighboring sentences stored for retrieval-time expansion
     window_context: str = ""
 
@@ -87,6 +93,8 @@ class GuardrailDecision(BaseModel):
 class LatencyBreakdown(BaseModel):
     stt_ms: float = 0.0
     guardrail_pre_ms: float = 0.0
+    route_ms: float = 0.0
+    web_search_ms: float = 0.0
     embedding_ms: float = 0.0
     retrieval_ms: float = 0.0
     rerank_ms: float = 0.0
@@ -108,12 +116,15 @@ class StrategyStats(BaseModel):
 
 class PipelineResponse(BaseModel):
     transcript: str = ""
+    language_name: str = "Hindi"
+    route: str = "RAG"
     answer: str = ""
     citations: list[Citation] = Field(default_factory=list)
     guardrail: GuardrailDecision = Field(default_factory=GuardrailDecision)
     latency: LatencyBreakdown = Field(default_factory=LatencyBreakdown)
     strategy_stats: list[StrategyStats] = Field(default_factory=list)
     retrieved_chunks: list[RetrievalResult] = Field(default_factory=list)
+    web_results: list[dict] = Field(default_factory=list)
 
 
 # ── Latency stats (live readout) ─────────────────────────────

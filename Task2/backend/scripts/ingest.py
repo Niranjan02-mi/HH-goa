@@ -32,57 +32,86 @@ from app.pipeline.indexer import build_index
 from app.models import Chunk
 
 
+import argparse
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Ingest MSMARCO-XI data.")
+    parser.add_argument("--all-languages", action="store_true", help="Ingest all available languages.")
+    parser.add_argument("--languages", type=str, help="Comma-separated list of languages (e.g. hi,mr,ta).")
+    parser.add_argument("--language", type=str, help="Single language to ingest (e.g. hi).")
+    return parser.parse_args()
+
 def main():
+    args = parse_args()
     print("=" * 60)
-    print("  MSMARCO-XI Hindi  Offline Ingestion Pipeline")
+    print("  MSMARCO-XI Multilingual Offline Ingestion Pipeline")
     print("=" * 60)
 
     output_dir = Path(settings.index_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    #  Step 1: Load dataset
-    print(f"\n[LOAD] Downloading MSMARCO-XI Hindi parquet from HuggingFace...")
+    lang_prefix_map = {
+        "as": "asm", "bn": "ben", "gu": "guj", "hi": "hin",
+        "kn": "kan", "ml": "mal", "mr": "mar", "ne": "nep",
+        "or": "ori", "pa": "pan", "ta": "tam", "te": "tel", "ur": "urd"
+    }
+
+    if args.all_languages:
+        langs = list(lang_prefix_map.keys())
+    elif args.languages:
+        langs = [l.strip() for l in args.languages.split(",")]
+    elif args.language:
+        langs = [args.language]
+    else:
+        langs = [settings.primary_language]  # Fallback
+
+    print(f"Ingesting languages: {langs}")
 
     from itertools import islice
     from huggingface_hub import hf_hub_download
     import pyarrow.parquet as pq
 
-    # Map language code to filename prefix
-    lang_prefix_map = {"hi": "hin", "bn": "ben", "gu": "guj", "kn": "kan",
-                       "ml": "mal", "mr": "mar", "or": "ori", "pa": "pan",
-                       "ta": "tam", "te": "tel", "as": "asm", "ne": "nep"}
-    lang_prefix = lang_prefix_map.get(settings.primary_language, settings.primary_language)
-    parquet_filename = f"train/{lang_prefix}train.parquet"
-
-    print(f"   Downloading {parquet_filename}...")
-    local_path = hf_hub_download(
-        repo_id="ai4bharat/MSMARCO-XI",
-        filename=parquet_filename,
-        repo_type="dataset",
-    )
-    print(f"   Downloaded to: {local_path}")
-
-    # Read only the first N rows using pyarrow (avoid loading 3.7GB into memory)
-    sample_size = settings.dataset_sample_size
-    print(f"\n[SAMPLE] Reading first {sample_size} rows...")
-
-    pf = pq.ParquetFile(local_path)
     sampled = []
-    for batch in pf.iter_batches(batch_size=min(sample_size, 500)):
-        df_batch = batch.to_pydict()
-        for i in range(len(list(df_batch.values())[0])):
-            row = {k: v[i] for k, v in df_batch.items()}
-            sampled.append(row)
-            if len(sampled) >= sample_size:
-                break
-        if len(sampled) >= sample_size:
-            break
+    
+    for lang in langs:
+        lang_prefix = lang_prefix_map.get(lang)
+        if not lang_prefix:
+            print(f"Warning: Unknown language {lang}, skipping.")
+            continue
 
-    print(f"   Collected {len(sampled)} rows")
-    if len(sampled) > 0:
-        print(f"   Fields: {list(sampled[0].keys())}")
+        parquet_filename = f"train/{lang_prefix}train.parquet"
+        print(f"\n[LOAD] Downloading MSMARCO-XI {lang} parquet from HuggingFace...")
 
+        try:
+            local_path = hf_hub_download(
+                repo_id="ai4bharat/MSMARCO-XI",
+                filename=parquet_filename,
+                repo_type="dataset",
+            )
+            print(f"   Downloaded {lang} to: {local_path}")
+            
+            sample_size = settings.dataset_sample_size
+            print(f"   [SAMPLE] Reading first {sample_size} rows for {lang}...")
+            
+            pf = pq.ParquetFile(local_path)
+            lang_sampled = 0
+            for batch in pf.iter_batches(batch_size=min(sample_size, 500)):
+                df_batch = batch.to_pydict()
+                for i in range(len(list(df_batch.values())[0])):
+                    row = {k: v[i] for k, v in df_batch.items()}
+                    row['_language'] = lang
+                    row['_language_name'] = lang_prefix_map.get(lang).capitalize() # Just as a placeholder name
+                    sampled.append(row)
+                    lang_sampled += 1
+                    if lang_sampled >= sample_size:
+                        break
+                if lang_sampled >= sample_size:
+                    break
+            print(f"   Collected {lang_sampled} rows for {lang}")
+        except Exception as e:
+            print(f"   Failed to download {lang}: {e}")
 
+    print(f"\n   Total Collected rows: {len(sampled)}")
 
     #  Step 3: Extract passages 
     print("\n [EXTRACT] Extracting passages...")
@@ -91,11 +120,14 @@ def main():
     for idx, row in enumerate(sampled):
         query_id = str(idx)
         query_type = row.get("query_type", "")
+        language = row.get("_language", "en")
+        language_name = row.get("_language_name", "")
 
         # Extract translated passages
         passages_data = row.get("passages", {})
         translated = passages_data.get("Translated_passages", [])
         is_selected = passages_data.get("is_selected", [])
+        english_passages = passages_data.get("passage_text", []) # Original english text
 
         if not translated:
             continue
@@ -106,13 +138,19 @@ def main():
             pid = f"P{idx}_{p_idx}"
             passages.append({
                 "text": passage_text.strip(),
+                "english_text": english_passages[p_idx] if p_idx < len(english_passages) else "",
                 "passage_id": pid,
                 "query_id": query_id,
                 "query_type": query_type,
                 "is_selected": is_selected[p_idx] if p_idx < len(is_selected) else 0,
+                "language": language,
+                "language_name": language_name,
+                "source_lang": "en",
+                "target_lang": language,
+                "passage_index": p_idx
             })
 
-    print(f"   Extracted {len(passages)} passages from {sample_size} queries")
+    print(f"   Extracted {len(passages)} passages from {len(sampled)} queries")
 
     #  Step 4: Chunk all passages 
     print("\n  [CHUNK] Chunking passages (4 strategies)...")
@@ -128,9 +166,19 @@ def main():
             passage_id=p["passage_id"],
             query_id=p["query_id"],
             query_type=p["query_type"],
-            language=settings.primary_language,
+            language=p["language"],
             embed_fn=embed_fn,
         )
+        # Update extra metadata for each chunk
+        for c in chunks:
+            c.language = p["language"]
+            c.language_name = p["language_name"]
+            c.source_lang = p["source_lang"]
+            c.target_lang = p["target_lang"]
+            c.english_text = p["english_text"]
+            c.passage_index = p["passage_index"]
+            c.is_selected = p["is_selected"]
+
         all_chunks.extend(chunks)
 
     print(f"   Total chunks: {len(all_chunks)}")
@@ -163,6 +211,7 @@ def main():
                 "query_id": str(idx),
                 "query": query_text,
                 "query_type": row.get("query_type", ""),
+                "language": row.get("_language", "")
             })
 
     with open(output_dir / "queries.json", "w", encoding="utf-8") as f:

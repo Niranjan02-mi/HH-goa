@@ -33,9 +33,9 @@ async def transcribe(audio_bytes: bytes) -> STTResponse:
             "file": ("audio.wav", audio_bytes, "audio/wav")
         }
 
-        # Use hi-IN for Hindi STT
+        # Use Unknown for automatic language detection
         data = {
-            "language_code": "hi-IN",
+            "language_code": "Unknown",
             "model": "saaras:v3"
         }
 
@@ -52,9 +52,11 @@ async def transcribe(audio_bytes: bytes) -> STTResponse:
             res_data = response.json()
 
         transcript = res_data.get("transcript", "")
+        # Safely extract detected language
+        detected_lang = res_data.get("language_code", "Unknown")
 
     return STTResponse(
         transcript=transcript,
-        language=settings.primary_language,
+        language=detected_lang,
         latency_ms=timing["ms"],
     )

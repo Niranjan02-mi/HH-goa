@@ -112,9 +112,15 @@ def hybrid_search(
     top_k = top_k or settings.top_k
     k_rrf = 60  # RRF constant
 
+    from concurrent.futures import ThreadPoolExecutor
+
     with timed_ms() as timing:
-        vector_results = search_faiss(query_embedding, top_k=top_k * 2)
-        bm25_results = search_bm25(query, top_k=top_k * 2)
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            faiss_future = executor.submit(search_faiss, query_embedding, top_k * 2)
+            bm25_future = executor.submit(search_bm25, query, top_k * 2)
+            
+            vector_results = faiss_future.result()
+            bm25_results = bm25_future.result()
 
     # Build RRF scores
     rrf_scores: dict[str, float] = {}

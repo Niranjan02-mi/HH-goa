@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f4d34f" />
+  <title>Vaani Studio — Ask</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Baloo+2:wght@600;700;800&family=Bungee&family=Imbue:opsz,wght@10..100,400;10..100,500;10..100,700&family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Victor+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div class="cursor-spot" aria-hidden="true"></div>
+  <div class="page">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Vaani RAG Studio home">
+        <span class="brand-mark">✳</span>
+        <span><span class="brand-word">VAANI</span><span class="brand-sub">RAG STUDIO · GOA</span></span>
+      </a>
+      <nav class="top-links" aria-label="Page sections">
+        <a href="#voice">ASK</a><a href="#evidence">EVIDENCE</a><a href="#guardrails">GUARDRAILS</a>
+      </nav>
+      <div class="top-meta"><span class="hh-date">GOA, INDIA · 28–31 OCT 2026</span><span class="live-pill">LIVE LAB</span><span id="clock">--:--</span><span class="tiny-chip" id="configBadge">AI PIPELINE</span></div>
+    </header>
+
+    <div class="marquee" aria-label="Vaani project ticker">
+      <div class="marquee-track">
+        <span>✦ TASK 02 · VOICE RAG</span><span>BUILD · LEARN · IMPACT</span><span>✦ ASK THE INDEX</span><span>CHAI POWERED</span><span>✦ TASK 02 · VOICE RAG</span><span>BUILD · LEARN · IMPACT</span><span>✦ ASK THE INDEX</span><span>CHAI POWERED</span>
+      </div>
+    </div>
+
+    <main id="top" style="padding-top: 40px;">
+      <section id="voice" class="wrap reveal delay-3">
+        <div class="section-label"><span>01 / SPEAK TO THE SYSTEM</span><span>Mic live · text fallback always on</span></div>
+        <div class="studio-grid">
+          <article class="poster-card capture-card">
+            <div class="card-top"><span class="card-index">01</span><span class="state" id="recordState">READY</span></div>
+            <h2 class="card-title">RECORD<br>YOUR<br>QUESTION</h2>
+            <p class="card-help">Say it like you mean it. Sarvam Saaras transcribes the audio, then the retrieval harness gets to work.</p>
+            <button class="record-button" id="recordBtn" type="button"><span><span class="button-dot">●</span> START RECORDING</span><span>↗</span></button>
+            <div class="wave" id="wave" aria-hidden="true"></div>
+            <div class="control-row"><select id="language" aria-label="Speech language"><option value="unknown">AUTO-DETECT LANGUAGE</option><option value="en-IN">ENGLISH</option><option value="as-IN">ASSAMESE</option><option value="bn-IN">BENGALI</option><option value="gu-IN">GUJARATI</option><option value="hi-IN">हिन्दी · HINDI</option><option value="kn-IN">KANNADA</option><option value="ml-IN">MALAYALAM</option><option value="mr-IN">MARATHI</option><option value="ne-IN">NEPALI</option><option value="od-IN">ODIA</option><option value="pa-IN">PUNJABI</option><option value="sa-IN">SANSKRIT</option><option value="ta-IN">தமிழ் · TAMIL</option><option value="te-IN">TELUGU</option><option value="ur-IN">URDU</option></select><button class="clear-button" id="clearBtn" type="button">CLEAR ↺</button></div>
+            <div class="transcript-box" id="transcript"><span class="label">TRANSCRIPT</span>Waiting for a voice or a typed question.</div>
+            <form class="input-line" id="queryForm"><input id="queryInput" placeholder="Type a question instead…" autocomplete="off" aria-label="Type your question"><button class="ask-button" type="submit">ASK →</button></form>
+          </article>
+
+          <article class="poster-card answer-card">
+            <div class="card-top"><span class="card-index">02</span><span class="state" id="statusText">WAITING</span></div>
+            <h2 class="card-title">LIVE<br>ANSWER</h2>
+            <div class="answer-kicker">// evidence only · citations attached · request <span id="requestId">—</span></div>
+            <div class="answer-box" id="answer" data-status="waiting" style="white-space: pre-wrap;">Your answer will land here. Ask about the indexed corpus and we’ll show you the receipts.</div>
+            <div class="metrics" id="metrics"><div class="metric"><b>READY</b><span>total</span></div><div class="metric"><b>READY</b><span>retrieval</span></div><div class="metric"><b>READY</b><span>generation</span></div><div class="metric"><b>ON</b><span>guardrails</span></div></div>
+            <div class="answer-meta"><span>STATUS <strong id="answerStatus">STANDBY</strong></span><span>NO HALLUCINATIONS ✳</span></div>
+          </article>
+        </div>
+      </section>
+
+      <section id="evidence" class="wrap evidence-section reveal">
+        <div class="section-label"><span>02 / THE RECEIPTS</span><span>Top retrieved passages · scores · lineage</span></div>
+        <div class="evidence-header"><h2>SHOW<br>ME THE<br>PROOF</h2><p>Every accepted answer exposes the passages that carried it. Different chunk strategies are part of the design, not an afterthought.</p></div>
+        <div class="source-grid" id="sources"><div class="source-empty">No evidence yet · ask a question above to populate the board.</div></div>
+      </section>
+
+      <section id="guardrails" class="wrap guardrail-strip reveal">
+        <div><div class="eyebrow">03 / GUARDRAILS ON</div><h2>KNOW WHEN<br>TO SAY <span>NO.</span></h2></div>
+        <div class="guardrail-copy">Vaani blocks unsafe prompts, notices off-topic questions, checks answer-to-context overlap, and abstains when the index has no honest answer.
+          <div class="guard-tags"><span class="guard-tag">UNSAFE INPUT</span><span class="guard-tag">OFF-TOPIC</span><span class="guard-tag">CITATIONS</span><span class="guard-tag">GROUNDED</span></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer"><span>BUILT IN GOA · VAANI RAG STUDIO · #RAGINGOA</span><span id="footerTime">LOCAL LAB</span><a href="#top">BACK TO TOP ↑</a></footer>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

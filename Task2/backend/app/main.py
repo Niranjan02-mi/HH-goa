@@ -25,8 +25,7 @@ from app.utils.latency import latency_tracker
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Load FAISS index + embedding model at startup."""
-    print("Starting Voice RAG Pipeline...")
-    print(f"   Language: {settings.primary_language}")
+    print("Starting Voice RAG Pipeline (Multilingual)...")
     print(f"   Model: {settings.generation_model}")
     print(f"   Threshold: {settings.similarity_threshold}")
 
@@ -66,11 +65,13 @@ app.add_middleware(
 )
 
 
+from fastapi.responses import StreamingResponse
+
 # ── Endpoints ────────────────────────────────────────────────
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "language": settings.primary_language}
+    return {"status": "ok", "language": "multilingual"}
 
 
 @app.get("/api/stats", response_model=LatencyStats)
@@ -79,56 +80,44 @@ async def stats():
     return latency_tracker.stats()
 
 
-@app.post("/api/query", response_model=PipelineResponse)
+@app.post("/api/query")
 async def query_voice(audio: UploadFile = File(...)):
     """
-    Accept audio blob (WAV/WebM) → run full pipeline → return answer.
+    Accept audio blob (WAV/WebM) → run full pipeline → return SSE stream.
     """
     try:
         audio_bytes = await audio.read()
         if not audio_bytes:
             raise HTTPException(status_code=400, detail="Empty audio file")
 
-        result = await orchestrator.run_pipeline(audio_bytes)
-        return result
+        return StreamingResponse(
+            orchestrator.run_pipeline_stream(audio_bytes),
+            media_type="text/event-stream"
+        )
 
     except HTTPException:
         raise
     except Exception as e:
-        return PipelineResponse(
-            transcript="",
-            answer="",
-            guardrail={
-                "passed": False,
-                "status": "blocked_offtopic",
-                "reason": f"Pipeline error: {str(e)}. Please try again.",
-            },
-        )
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 class TextQuery(BaseModel):
     query: str
 
 
-@app.post("/api/query-text", response_model=PipelineResponse)
+@app.post("/api/query-text")
 async def query_text(body: TextQuery):
     """
-    Accept text query → run pipeline (skip STT) → return answer.
+    Accept text query → run pipeline (skip STT) → return SSE stream.
     For testing and benchmarking without a microphone.
     """
     if not body.query.strip():
         raise HTTPException(status_code=400, detail="Empty query")
 
     try:
-        result = await orchestrator.run_pipeline_text(body.query)
-        return result
-    except Exception as e:
-        return PipelineResponse(
-            transcript=body.query,
-            answer="",
-            guardrail={
-                "passed": False,
-                "status": "blocked_offtopic",
-                "reason": f"Pipeline error: {str(e)}. Please try again.",
-            },
+        return StreamingResponse(
+            orchestrator.run_pipeline_text_stream(body.query),
+            media_type="text/event-stream"
         )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

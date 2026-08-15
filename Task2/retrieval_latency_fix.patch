@@ -1,0 +1,130 @@
+diff --git a/Task2/backend/.env.example b/Task2/backend/.env.example
+index 7cde98e..4b448a8 100644
+--- a/Task2/backend/.env.example
++++ b/Task2/backend/.env.example
+@@ -7,3 +7,11 @@ GENERATION_MODEL=llama-3.1-70b-versatile
+ EMBEDDING_MODEL=intfloat/multilingual-e5-large
+ INDEX_DIR=app/data
+ DATASET_SAMPLE_SIZE=3000
++
++# Retrieval performance — see PRD latency notes. BM25 hybrid measured at
++# ~380ms P50 / 200k chunks (rank_bm25 isn't indexed, scans the corpus every
++# query); off by default. IVF is ~20x faster than flat FAISS at 200k+ vectors.
++ENABLE_BM25_HYBRID=false
++FAISS_INDEX_TYPE=flat
++FAISS_NLIST=200
++FAISS_NPROBE=8
+diff --git a/Task2/backend/app/config.py b/Task2/backend/app/config.py
+index 106d2af..4980055 100644
+--- a/Task2/backend/app/config.py
++++ b/Task2/backend/app/config.py
+@@ -19,6 +19,17 @@ class Settings(BaseSettings):
+     # ── Retrieval ─────────────────────────────────────────────
+     similarity_threshold: float = 0.55
+     top_k: int = 10
++    # BM25 (rank_bm25) does a pure-Python score pass over the whole corpus on
++    # every query -- measured at ~380ms P50 / 200k chunks, dwarfing FAISS.
++    # Off by default; flip on only once it's replaced with an indexed impl
++    # (e.g. bm25s) or your corpus is small enough that it's cheap again.
++    enable_bm25_hybrid: bool = False
++    # "flat" = exact brute-force (IndexFlatIP). Fine under ~50k vectors.
++    # "ivf"  = approximate (IndexIVFFlat) -- ~20x faster at 200k+ vectors,
++    # small recall trade-off. Needs enough vectors to train nlist clusters.
++    faiss_index_type: str = "flat"
++    faiss_nlist: int = 200
++    faiss_nprobe: int = 8
+ 
+     # ── Generation ────────────────────────────────────────────
+     generation_model: str = "llama-3.3-70b-versatile"
+diff --git a/Task2/backend/app/pipeline/indexer.py b/Task2/backend/app/pipeline/indexer.py
+index 15f2f2f..d400707 100644
+--- a/Task2/backend/app/pipeline/indexer.py
++++ b/Task2/backend/app/pipeline/indexer.py
+@@ -12,6 +12,7 @@ from pathlib import Path
+ import faiss
+ import numpy as np
+ 
++from app.config import settings
+ from app.models import Chunk
+ 
+ 
+@@ -34,8 +35,21 @@ def build_index(
+     n, d = embeddings.shape
+     assert n == len(chunks), f"Mismatch: {n} embeddings vs {len(chunks)} chunks"
+ 
+-    # Build flat inner-product index (cosine similarity on L2-normed vectors)
+-    index = faiss.IndexFlatIP(d)
++    if settings.faiss_index_type == "ivf" and n >= settings.faiss_nlist * 40:
++        # Approximate search — measured ~20x faster than flat at 200k vectors.
++        # Needs enough vectors per cluster (nlist) to train meaningfully, so
++        # this only kicks in once the corpus is actually large enough for it
++        # to matter; small corpora fall through to flat below.
++        quantizer = faiss.IndexFlatIP(d)
++        index = faiss.IndexIVFFlat(quantizer, d, settings.faiss_nlist, faiss.METRIC_INNER_PRODUCT)
++        index.train(embeddings)
++        index.nprobe = settings.faiss_nprobe
++    else:
++        # Exact brute-force inner-product search (cosine similarity on
++        # L2-normed vectors). Simple and exact, but scales linearly with
++        # corpus size — measured ~62ms P50 at 200k vectors on CPU, so it
++        # stops being "basically free" well before you'd expect.
++        index = faiss.IndexFlatIP(d)
+     index.add(embeddings)
+ 
+     # Save FAISS index
+@@ -59,6 +73,11 @@ def load_index(index_dir: str | Path) -> tuple[faiss.Index, list[dict]]:
+     index_dir = Path(index_dir)
+     index = faiss.read_index(str(index_dir / "faiss.index"))
+ 
++    # nprobe is a runtime search param -- reapply explicitly on load rather
++    # than trust it round-tripped through the serialized index.
++    if hasattr(index, "nprobe"):
++        index.nprobe = settings.faiss_nprobe
++
+     with open(index_dir / "metadata.json", "r", encoding="utf-8") as f:
+         metadata = json.load(f)
+ 
+diff --git a/Task2/backend/app/pipeline/retrieval.py b/Task2/backend/app/pipeline/retrieval.py
+index 6c80d97..5e9a98d 100644
+--- a/Task2/backend/app/pipeline/retrieval.py
++++ b/Task2/backend/app/pipeline/retrieval.py
+@@ -29,12 +29,18 @@ def init_retrieval(index_dir: str | None = None):
+     index_dir = index_dir or settings.index_dir
+     _faiss_index, _metadata = load_index(index_dir)
+ 
+-    # Build BM25 index for hybrid search
+-    _chunk_texts = [m.get("text", "") for m in _metadata]
+-    tokenized = [t.split() for t in _chunk_texts]
+-    _bm25 = BM25Okapi(tokenized)
++    if settings.enable_bm25_hybrid:
++        # rank_bm25's BM25Okapi does a pure-Python scan of the whole corpus
++        # on every query (~380ms P50 measured at 200k chunks) -- only pay
++        # the build cost if hybrid search is actually turned on.
++        _chunk_texts = [m.get("text", "") for m in _metadata]
++        tokenized = [t.split() for t in _chunk_texts]
++        _bm25 = BM25Okapi(tokenized)
++    else:
++        _bm25 = None
+ 
+-    print(f"Retrieval initialized: {_faiss_index.ntotal} vectors loaded")
++    print(f"Retrieval initialized: {_faiss_index.ntotal} vectors loaded "
++          f"(bm25_hybrid={'on' if settings.enable_bm25_hybrid else 'off'})")
+ 
+ 
+ def search_faiss(
+@@ -108,8 +114,15 @@ def hybrid_search(
+ ) -> list[RetrievalResult]:
+     """
+     Reciprocal rank fusion of FAISS vector + BM25 keyword results.
++    Falls back to vector-only search when BM25 hybrid is disabled
++    (see settings.enable_bm25_hybrid) — skips the RRF fusion entirely
++    rather than fusing against an empty result set.
+     """
+     top_k = top_k or settings.top_k
++
++    if not settings.enable_bm25_hybrid:
++        return search_faiss(query_embedding, top_k=top_k)
++
+     k_rrf = 60  # RRF constant
+ 
+     with timed_ms() as timing:

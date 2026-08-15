@@ -1,137 +1,79 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Voice RAG — HH Goa 2026 | #RAGInGoa</title>
-  <meta name="description" content="Speak a question in Hindi, get a grounded, cited answer from MSMARCO-XI. Voice-Enabled RAG Pipeline for Hacker House Goa 2026." />
-
-  <!-- Google Fonts — matching Task 1 visual language -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
-
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f4d34f" />
+  <title>Vaani Studio — Voice RAG in Goa</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Baloo+2:wght@600;700;800&family=Bungee&family=Imbue:opsz,wght@10..100,400;10..100,500;10..100,700&family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Victor+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
-  <!-- ── Background Grid ─────────────────────────────────── -->
-  <div class="bg-grid" aria-hidden="true"></div>
-  <div class="bg-glow" aria-hidden="true"></div>
+  <div class="cursor-spot" aria-hidden="true"></div>
+  <div class="page">
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="Vaani RAG Studio home">
+        <span class="brand-mark">✳</span>
+        <span><span class="brand-word">VAANI</span><span class="brand-sub">RAG STUDIO · GOA</span></span>
+      </a>
+      <nav class="top-links" aria-label="Page sections">
+        <a href="#voice">ASK</a><a href="#evidence">EVIDENCE</a><a href="#guardrails">GUARDRAILS</a>
+      </nav>
+      <div class="top-meta"><span class="hh-date">GOA, INDIA · 28–31 OCT 2026</span><span class="live-pill">LIVE LAB</span><span id="clock">--:--</span><span class="tiny-chip" id="configBadge">AI PIPELINE</span></div>
+    </header>
 
-  <!-- ── Header ──────────────────────────────────────────── -->
-  <header class="header" id="header">
-    <div class="header__logo">
-      <span class="header__icon">🎙️</span>
-      <h1 class="header__title">VOICE<span class="accent">RAG</span></h1>
+    <div class="marquee" aria-label="Vaani project ticker">
+      <div class="marquee-track">
+        <span>✦ TASK 02 · VOICE RAG</span><span>BUILD · LEARN · IMPACT</span><span>✦ ASK THE INDEX</span><span>CHAI POWERED</span><span>✦ TASK 02 · VOICE RAG</span><span>BUILD · LEARN · IMPACT</span><span>✦ ASK THE INDEX</span><span>CHAI POWERED</span>
+      </div>
     </div>
-    <div class="header__badges">
-      <span class="badge badge--primary">#RAGInGoa</span>
-      <span class="badge badge--accent">HH GOA 2026</span>
-      <span class="badge badge--outline" id="badge-language">Hindi</span>
-    </div>
-  </header>
 
-  <!-- ── Main Content ────────────────────────────────────── -->
-  <main class="main" id="main">
-
-    <!-- ── Mic Section ─────────────────────────────────── -->
-    <section class="mic-section" id="mic-section">
-      <p class="mic-section__hint">हिंदी में बोलें — Speak in Hindi</p>
-
-      <button class="mic-btn" id="mic-btn" aria-label="Record voice query">
-        <svg class="mic-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-          <line x1="12" y1="19" x2="12" y2="23"/>
-          <line x1="8" y1="23" x2="16" y2="23"/>
-        </svg>
-        <div class="mic-btn__pulse" aria-hidden="true"></div>
-        <div class="mic-btn__rings" aria-hidden="true">
-          <div class="ring ring--1"></div>
-          <div class="ring ring--2"></div>
-          <div class="ring ring--3"></div>
+    <main id="top">
+      <section class="wrap hero">
+        <div class="hero-copy reveal">
+          <div class="eyebrow">Task #2 · Voice to grounded answer</div>
+          <h1>ASK<br><span class="outline">THE</span><br><span class="pink">INDEX</span></h1>
+          <p>Speak a question. Vaani turns your voice into a cited answer without making things up.</p>
+          <p class="hindi">आवाज़ से सवाल पूछिए · जवाब सबूत के साथ</p>
+          <div class="hero-stamps"><span class="stamp">SARVAM STT</span><span class="stamp">GPT ANSWERS</span><span class="stamp">SAFE BY DESIGN</span></div>
+          <a href="/ask.html" class="record-button" style="display:inline-flex; width:auto; text-decoration:none; margin-top:30px; font-size:20px; min-height:50px;"><span>TRY IT OUT ↗</span></a>
         </div>
-      </button>
+        <div class="hero-art reveal delay-2" aria-hidden="true">
+          <div class="sun-disc"><div class="art-orbit"></div><div class="art-title">VOICE<span>IN</span>GOA</div></div>
+          <div class="art-note one">AUDIO → TEXT<br>TEXT → TRUTH</div>
+          <div class="art-note two">MULTI-VIEW<br>RETRIEVAL ✳</div>
+          <div class="art-star s1">✦</div><div class="art-star s2">✳</div>
+        </div>
+      </section>
 
-      <p class="mic-section__status" id="mic-status">Tap to speak</p>
+      <section class="wrap hh-stats-wrap reveal delay-3" aria-label="Vaani studio statistics">
+        <div class="hh-stat-head"><span>2026 / INSIDE THE ROOM</span><span>LESS NOISE · MORE SIGNAL</span></div>
+        <div class="hh-stats">
+          <div class="hh-stat"><strong>05</strong><span>CHUNK VIEWS</span></div>
+          <div class="hh-stat"><strong>&lt;200</strong><span>MS TARGET</span></div>
+          <div class="hh-stat"><strong>100%</strong><span>CITED OUTPUT</span></div>
+          <div class="hh-stat"><strong>0</strong><span>GUESSWORK</span></div>
+        </div>
+      </section>
 
-      <!-- Text fallback input -->
-      <div class="text-input-row" id="text-input-row">
-        <input type="text" class="text-input" id="text-input" placeholder="या यहाँ टाइप करें... (or type here)" />
-        <button class="text-send-btn" id="text-send-btn" aria-label="Send text query">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
-            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-          </svg>
-        </button>
-      </div>
-    </section>
+      <section class="wrap inside-room reveal delay-4" aria-label="Inside the harness">
+        <div class="section-label"><span>INSIDE THE ROOM</span><span>4 stages · 1 grounded answer</span></div>
+        <div class="inside-head"><h2>4 DAYS.<br><em>ONE RHYTHM.</em></h2><p>Borrowing the HH Goa residency rhythm: every stage has a job, every answer has a trail.</p></div>
+        <div class="room-grid">
+          <article class="room-card"><span class="room-day">DAY 01 · GENESIS</span><h3>LISTEN</h3><p>Speech comes in. Language-aware transcript comes out.</p><span class="room-tag">SARVAM STT</span></article>
+          <article class="room-card"><span class="room-day">DAY 02 · TRIANGLE</span><h3>SEARCH</h3><p>Dense vectors meet BM25 across engineered chunk views.</p><span class="room-tag">VECTOR + BM25</span></article>
+          <article class="room-card"><span class="room-day">DAY 03 · BUILD</span><h3>GROUND</h3><p>GPT writes only after evidence clears the relevance gate.</p><span class="room-tag">GPT · CITATIONS</span></article>
+          <article class="room-card"><span class="room-day">DAY 04 · LAUNCH</span><h3>PROVE</h3><p>Guardrails decide: answer, abstain, block, or recover.</p><span class="room-tag">SAFE OUTPUT</span></article>
+        </div>
+      </section>
 
-    <!-- ── Transcript ──────────────────────────────────── -->
-    <section class="transcript-section hidden" id="transcript-section">
-      <div class="section-label">TRANSCRIPT</div>
-      <p class="transcript-text" id="transcript-text"></p>
-    </section>
 
-    <!-- ── Answer Card (happy path) ────────────────────── -->
-    <section class="answer-card hidden" id="answer-card">
-      <div class="section-label">ANSWER</div>
-      <div class="answer-card__body">
-        <p class="answer-text" id="answer-text"></p>
-        <div class="citations" id="citations"></div>
-      </div>
-      <div class="answer-card__meta">
-        <div class="strategy-stats" id="strategy-stats"></div>
-      </div>
-    </section>
+    </main>
 
-    <!-- ── Guardrail Declined Card ─────────────────────── -->
-    <section class="decline-card hidden" id="decline-card">
-      <div class="section-label section-label--warn">GUARDRAIL</div>
-      <div class="decline-card__body">
-        <div class="decline-icon">🛡️</div>
-        <p class="decline-reason" id="decline-reason"></p>
-        <div class="decline-meta" id="decline-meta"></div>
-      </div>
-    </section>
-
-    <!-- ── Latency Readout ─────────────────────────────── -->
-    <section class="latency-bar" id="latency-bar">
-      <div class="latency-item">
-        <span class="latency-label">P50</span>
-        <span class="latency-value" id="lat-p50">—</span>
-      </div>
-      <div class="latency-item">
-        <span class="latency-label">P70</span>
-        <span class="latency-value" id="lat-p70">—</span>
-      </div>
-      <div class="latency-item">
-        <span class="latency-label">P100</span>
-        <span class="latency-value" id="lat-p100">—</span>
-      </div>
-      <div class="latency-item">
-        <span class="latency-label">THIS</span>
-        <span class="latency-value latency-value--this" id="lat-this">—</span>
-      </div>
-      <div class="latency-item">
-        <span class="latency-label">QUERIES</span>
-        <span class="latency-value" id="lat-count">0</span>
-      </div>
-    </section>
-
-    <!-- ── Per-query latency breakdown ─────────────────── -->
-    <section class="breakdown hidden" id="breakdown">
-      <div class="section-label">LATENCY BREAKDOWN</div>
-      <div class="breakdown__grid" id="breakdown-grid"></div>
-    </section>
-
-  </main>
-
-  <!-- ── Footer ──────────────────────────────────────────── -->
-  <footer class="footer">
-    <span>HH Goa 2026 · Task 2 · Voice RAG Pipeline</span>
-    <span class="footer__dot">•</span>
-    <span>#RAGInGoa</span>
-  </footer>
+    <footer class="footer"><span>BUILT IN GOA · VAANI RAG STUDIO · #RAGINGOA</span><span id="footerTime">LOCAL LAB</span><a href="#top">BACK TO TOP ↑</a></footer>
+  </div>
 
   <script type="module" src="/src/main.js"></script>
 </body>

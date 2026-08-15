@@ -4,22 +4,25 @@
 
 ## 🎯 What it does
 
-1. **Voice Input** → Sarvam AI Saaras v3 transcribes spoken Hindi
-2. **Multi-Strategy Chunking** → 4 strategies (fixed-size, semantic, sentence-window, metadata-aware) feed one combined FAISS index
-3. **Hybrid Retrieval** → FAISS vector search + BM25 keyword matching via reciprocal rank fusion
-4. **Grounded Generation** → Groq (Llama 3.1 70B) generates answers citing specific passage IDs
-5. **Three-Layer Guardrails** → Pre-retrieval filter, confidence threshold, post-generation groundedness check
-6. **Latency Benchmark** → P50/P70/P100 measured across real queries, displayed live in the UI
+1. **Voice Input** → Sarvam AI Saaras v3 transcribes spoken audio in any Indian language.
+2. **Language Detection & Guardrails** → Detects language from the transcript (Hindi, Marathi, English, etc.) and performs pre-retrieval safety checks.
+3. **Dynamic Routing** → Routes queries intelligently between `RAG`, `WEB`, `RAG_PLUS_WEB`, and `GENERAL_LLM` via heuristics and LLMs.
+4. **Multi-Strategy Retrieval** → (For RAG) 4 strategies feed FAISS + BM25 via reciprocal rank fusion.
+5. **Web Search** → (For Web) Real-time external knowledge lookup via Tavily.
+6. **Grounded Generation** → Groq (Llama 3.3 70B) generates cited answers seamlessly in the user's spoken language.
+7. **Post-Generation Guardrails** → Hallucination self-checks and live P50/P70/P100 latency monitoring.
 
 ## 🏗️ Architecture
 
 ```
-Voice → Sarvam STT → Guardrail (pre) → Embed query → FAISS retrieval
-  → Rerank across strategies → Guardrail (post-retrieval) → Groq LLM
-  → Guardrail (groundedness) → Answer + Citations
+Voice → Sarvam STT → Detect Language → Guardrail (pre) → Router 
+       ├─→ (RAG) Embed → Retrieve → Rerank → Guardrail (post-retrieval) ─┐
+       ├─→ (WEB) Tavily Search ──────────────────────────────────────────┤
+       ├─→ (GENERAL_LLM) ────────────────────────────────────────────────┴─→ Groq LLM
+       └─→ Guardrail (groundedness) → Answer (in spoken language)
 ```
 
-**Offline pipeline**: MSMARCO-XI Hindi subset → Clean → 4 chunking strategies → BGE-M3/multilingual-e5 embeddings → FAISS index
+**Offline pipeline**: MSMARCO-XI subset → Clean → 4 chunking strategies → BGE-M3/multilingual-e5 embeddings → FAISS index
 
 ## 🚀 Quick Start
 

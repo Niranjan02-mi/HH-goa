@@ -22,21 +22,20 @@ def get_client() -> AsyncGroq:
     return _client
 
 
-def _build_context(chunks: list[RetrievalResult]) -> str:
-    """Format retrieved chunks as numbered passages for the LLM."""
+from app.pipeline.prompts import RAG_PROMPT, WEB_PROMPT, RAG_PLUS_WEB_PROMPT
+
+def _build_rag_context(chunks: list[RetrievalResult]) -> str:
     parts = []
     for i, chunk in enumerate(chunks):
         pid = chunk.passage_id or f"P{i+1}"
         parts.append(f"[{pid}]: {chunk.chunk_text}")
     return "\n\n".join(parts)
 
-
-SYSTEM_PROMPT = """You are a factual assistant. Answer the user's question ONLY using the provided context passages. Follow these rules strictly:
-1. Cite passage IDs like [P1], [P2] for every claim.
-2. If the context doesn't contain the answer, say: "इस संदर्भ में यह जानकारी उपलब्ध नहीं है।" (This information is not available in the context.)
-3. Keep your answer concise — 2-4 sentences maximum.
-4. Answer in the same language as the question."""
-
+def _build_web_context(web_results: list[dict]) -> str:
+    parts = []
+    for i, res in enumerate(web_results):
+        parts.append(f"Source [{i+1}] {res['url']}:\n{res['snippet']}")
+    return "\n\n".join(parts)
 
 @retry(
     stop=stop_after_attempt(2),
@@ -46,24 +45,37 @@ SYSTEM_PROMPT = """You are a factual assistant. Answer the user's question ONLY 
 )
 async def generate_answer(
     query: str,
-    chunks: list[RetrievalResult],
+    language_name: str,
+    route: str,
+    chunks: list[RetrievalResult] = None,
+    web_results: list[dict] = None,
 ) -> GenerationResponse:
-    """Generate a grounded answer from retrieved chunks via Groq."""
+    """Generate a grounded answer from retrieved chunks or web via Groq."""
     client = get_client()
-    context = _build_context(chunks)
+    chunks = chunks or []
+    web_results = web_results or []
+    
+    if route == "WEB":
+        system_prompt = WEB_PROMPT
+        context = _build_web_context(web_results)
+        user_msg = f"Web results:\n{context}\n\nQuestion: {query}\n\nAnswer (cite URLs):"
+    elif route == "RAG_PLUS_WEB":
+        system_prompt = RAG_PLUS_WEB_PROMPT
+        rag_context = _build_rag_context(chunks)
+        web_context = _build_web_context(web_results)
+        user_msg = f"DATASET SOURCES:\n{rag_context}\n\nWEB SOURCES:\n{web_context}\n\nQuestion: {query}\n\nAnswer (cite passage IDs and URLs):"
+    else: # Default RAG
+        system_prompt = RAG_PROMPT
+        context = _build_rag_context(chunks)
+        user_msg = f"Context passages:\n{context}\n\nQuestion: {query}\n\nAnswer (cite passage IDs):"
 
-    user_msg = f"""Context passages:
-{context}
-
-Question: {query}
-
-Answer (cite passage IDs):"""
+    lang_instruction = f"\nAnswer in {language_name}."
 
     with timed_ms() as timing:
         response = await client.chat.completions.create(
             model=settings.generation_model,
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt + lang_instruction},
                 {"role": "user", "content": user_msg},
             ],
             max_tokens=settings.max_gen_tokens,
@@ -72,23 +84,96 @@ Answer (cite passage IDs):"""
 
     answer = response.choices[0].message.content or ""
 
-    # Extract cited passage IDs from answer
+    # Extract cited passage IDs and URLs
     import re
-    cited_ids = list(set(re.findall(r'\[([^\]]+)\]', answer)))
-
     citations = []
+    
+    # RAG citations
+    cited_ids = list(set(re.findall(r'\[(P\d+(?:_\d+)?)\]', answer)))
     for pid in cited_ids:
-        # Find the matching chunk text
         chunk_text = ""
         for c in chunks:
-            cpid = c.passage_id or ""
-            if cpid == pid:
+            if c.passage_id == pid:
                 chunk_text = c.chunk_text[:200]
                 break
         citations.append(Citation(passage_id=pid, chunk_text=chunk_text))
+        
+    # Web citations (heuristic extraction of URLs or Source [1])
+    # To keep it simple, we check if URLs exist in answer
+    for res in web_results:
+        url = res["url"]
+        if url in answer:
+            citations.append(Citation(passage_id=url, chunk_text=res["snippet"][:200]))
 
     return GenerationResponse(
         answer=answer,
         citations=citations,
         latency_ms=timing["ms"],
     )
+
+async def generate_answer_stream(
+    query: str,
+    language_name: str,
+    route: str,
+    chunks: list[RetrievalResult] = None,
+    web_results: list[dict] = None,
+):
+    """Yield chunks of a grounded answer via Groq, returning citations at the end."""
+    client = get_client()
+    chunks = chunks or []
+    web_results = web_results or []
+    
+    if route == "WEB":
+        system_prompt = WEB_PROMPT
+        context = _build_web_context(web_results)
+        user_msg = f"Web results:\n{context}\n\nQuestion: {query}\n\nAnswer (cite URLs):"
+    elif route == "RAG_PLUS_WEB":
+        system_prompt = RAG_PLUS_WEB_PROMPT
+        rag_context = _build_rag_context(chunks)
+        web_context = _build_web_context(web_results)
+        user_msg = f"DATASET SOURCES:\n{rag_context}\n\nWEB SOURCES:\n{web_context}\n\nQuestion: {query}\n\nAnswer (cite passage IDs and URLs):"
+    else: # Default RAG
+        system_prompt = RAG_PROMPT
+        context = _build_rag_context(chunks)
+        user_msg = f"Context passages:\n{context}\n\nQuestion: {query}\n\nAnswer (cite passage IDs):"
+
+    lang_instruction = f"\nAnswer in {language_name}."
+
+    response = await client.chat.completions.create(
+        model=settings.generation_model,
+        messages=[
+            {"role": "system", "content": system_prompt + lang_instruction},
+            {"role": "user", "content": user_msg},
+        ],
+        max_tokens=settings.max_gen_tokens,
+        temperature=settings.gen_temperature,
+        stream=True,
+    )
+    
+    full_answer = ""
+    async for chunk in response:
+        delta = chunk.choices[0].delta.content
+        if delta:
+            full_answer += delta
+            yield delta
+
+    # Build citations from full_answer
+    import re
+    citations = []
+    
+    cited_ids = list(set(re.findall(r'\[(P\d+(?:_\d+)?)\]', full_answer)))
+    for pid in cited_ids:
+        chunk_text = ""
+        for c in chunks:
+            if c.passage_id == pid:
+                chunk_text = c.chunk_text[:200]
+                break
+        citations.append(Citation(passage_id=pid, chunk_text=chunk_text))
+        
+    for res in web_results:
+        url = res["url"]
+        if url in full_answer:
+            citations.append(Citation(passage_id=url, chunk_text=res["snippet"][:200]))
+
+    # Yield citations as a dict at the very end
+    yield {"citations": [c.model_dump() for c in citations]}

@@ -1,50 +1,105 @@
 /**
  * Voice RAG — Main Application Logic
- *
- * State machine: idle → listening → processing → answer | declined
- * Handles: mic capture (MediaRecorder API), API calls, UI state rendering
+ * Adapted for Vaani Studio UI
  */
 
-// ── API base URL ────────────────────────────────────────────
-const API_BASE = window.location.hostname === 'localhost'
-  ? ''  // Vite proxy handles /api → :8000
-  : '';  // Same-origin in production
+const API_BASE = window.location.hostname === 'localhost' ? '' : '';
 
 // ── DOM Elements ────────────────────────────────────────────
-const micBtn = document.getElementById('mic-btn');
-const micStatus = document.getElementById('mic-status');
-const textInput = document.getElementById('text-input');
-const textSendBtn = document.getElementById('text-send-btn');
-const transcriptSection = document.getElementById('transcript-section');
-const transcriptText = document.getElementById('transcript-text');
-const answerCard = document.getElementById('answer-card');
-const answerText = document.getElementById('answer-text');
-const citationsEl = document.getElementById('citations');
-const strategyStats = document.getElementById('strategy-stats');
-const declineCard = document.getElementById('decline-card');
-const declineReason = document.getElementById('decline-reason');
-const declineMeta = document.getElementById('decline-meta');
-const latP50 = document.getElementById('lat-p50');
-const latP70 = document.getElementById('lat-p70');
-const latP100 = document.getElementById('lat-p100');
-const latThis = document.getElementById('lat-this');
-const latCount = document.getElementById('lat-count');
-const breakdown = document.getElementById('breakdown');
-const breakdownGrid = document.getElementById('breakdown-grid');
+const recordBtn = document.getElementById('recordBtn');
+const recordState = document.getElementById('recordState');
+const statusText = document.getElementById('statusText');
+const answerStatus = document.getElementById('answerStatus');
+const queryForm = document.getElementById('queryForm');
+const queryInput = document.getElementById('queryInput');
+const clearBtn = document.getElementById('clearBtn');
+const transcriptBox = document.getElementById('transcript');
+const answerBox = document.getElementById('answer');
+const sourcesGrid = document.getElementById('sources');
+const metricsContainer = document.getElementById('metrics');
+const languageSelect = document.getElementById('language');
+const wave = document.getElementById('wave');
+const requestIdEl = document.getElementById('requestId');
+
+// ── Setup Wave ──────────────────────────────────────────────
+if (wave) {
+  for (let i = 0; i < 34; i++) { 
+    const bar = document.createElement('i'); 
+    bar.className = 'bar'; 
+    wave.appendChild(bar); 
+  }
+}
 
 // ── State ───────────────────────────────────────────────────
-let state = 'idle';  // idle | listening | processing | answer | declined
+let state = 'idle'; // idle | listening | processing | answer | declined
 let mediaRecorder = null;
 let audioChunks = [];
 
-// ── Mic Button ──────────────────────────────────────────────
-micBtn.addEventListener('click', async () => {
-  if (state === 'idle') {
-    await startRecording();
-  } else if (state === 'listening') {
-    stopRecording();
+// ── Helpers ─────────────────────────────────────────────────
+function setStatus(text, warn = false) {
+  statusText.textContent = text.toUpperCase();
+  recordState.textContent = state === 'listening' ? 'LISTENING' : (warn ? 'CHECK' : 'READY');
+  answerStatus.textContent = text.toUpperCase();
+}
+
+function setTranscript(text) {
+  transcriptBox.replaceChildren();
+  const labelNode = document.createElement('span'); 
+  labelNode.className = 'label'; 
+  labelNode.textContent = 'TRANSCRIPT';
+  transcriptBox.append(labelNode, document.createTextNode(text || 'No transcript returned.'));
+}
+
+function updateState(newState) {
+  state = newState;
+  
+  if (state === 'listening') {
+    recordBtn.classList.add('recording');
+    recordBtn.innerHTML = '<span><span class="button-dot">■</span> STOP RECORDING</span><span>↗</span>';
+    wave.classList.add('is-recording');
+    setStatus('LISTENING…');
+  } else {
+    recordBtn.classList.remove('recording');
+    recordBtn.innerHTML = '<span><span class="button-dot">●</span> START RECORDING</span><span>↗</span>';
+    wave.classList.remove('is-recording');
   }
+}
+
+// ── Time & Interactivity ────────────────────────────────────
+function tickClock() { 
+  const now = new Date(); 
+  const value = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); 
+  if (document.getElementById('clock')) document.getElementById('clock').textContent = value; 
+  if (document.getElementById('footerTime')) document.getElementById('footerTime').textContent = `LOCAL LAB · ${value}`; 
+}
+tickClock(); 
+setInterval(tickClock, 1000);
+
+window.addEventListener('pointermove', event => { 
+  document.documentElement.style.setProperty('--mx', `${event.clientX}px`); 
+  document.documentElement.style.setProperty('--my', `${event.clientY}px`); 
 });
+
+const art = document.querySelector('.hero-art'); 
+if (art) {
+  window.addEventListener('pointermove', event => { 
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return; 
+    const x = (event.clientX / window.innerWidth - .5) * 8; 
+    const y = (event.clientY / window.innerHeight - .5) * 8; 
+    art.style.transform = `translate(${x}px, ${y}px)`; 
+  });
+}
+
+// ── Mic Button ──────────────────────────────────────────────
+if (recordBtn) {
+  recordBtn.addEventListener('click', async () => {
+    if (state === 'idle' || state === 'answer' || state === 'declined') {
+      await startRecording();
+    } else if (state === 'listening') {
+      stopRecording();
+    }
+  });
+}
 
 async function startRecording() {
   try {
@@ -63,18 +118,25 @@ async function startRecording() {
     };
 
     mediaRecorder.start();
-    setState('listening');
+    updateState('listening');
+    
+    // reset UI
+    answerBox.textContent = '';
+    sourcesGrid.innerHTML = '';
+    renderMetrics(null);
   } catch (err) {
     console.error('Mic error:', err);
-    micStatus.textContent = 'Microphone access denied';
-    micStatus.className = 'mic-section__status';
+    setStatus('MICROPHONE UNAVAILABLE', true);
+    answerBox.textContent = 'This browser does not expose MediaRecorder or access was denied. Use the typed question box.';
+    answerBox.dataset.status = 'blocked';
   }
 }
 
 function stopRecording() {
   if (mediaRecorder && mediaRecorder.state === 'recording') {
     mediaRecorder.stop();
-    setState('processing');
+    updateState('processing');
+    setStatus('UPLOADING AUDIO…');
   }
 }
 
@@ -86,39 +148,58 @@ function getMimeType() {
 }
 
 // ── Text Input ──────────────────────────────────────────────
-textSendBtn.addEventListener('click', () => sendTextQuery());
-textInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') sendTextQuery();
-});
+if (queryForm) {
+  queryForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const query = queryInput.value.trim();
+    if (!query) return;
 
-async function sendTextQuery() {
-  const query = textInput.value.trim();
-  if (!query) return;
+    updateState('processing');
+    queryInput.value = '';
+    
+    setStatus('SEARCHING…'); 
+    answerBox.textContent = '';
+    answerBox.dataset.status = 'waiting';
+    sourcesGrid.innerHTML = '';
+    renderMetrics(null);
 
-  setState('processing');
-  textInput.value = '';
+    try {
+      const res = await fetch(`${API_BASE}/api/query-text`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+      });
 
-  try {
-    const res = await fetch(`${API_BASE}/api/query-text`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query }),
-    });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await handleStream(res);
+    } catch (err) {
+      console.error('Text query error:', err);
+      setStatus('REQUEST FAILED', true);
+      answerBox.textContent = `Request failed: ${err.message}. Please try again.`;
+      answerBox.dataset.status = 'blocked';
+      updateState('declined');
+    }
+  });
+}
 
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    handleResponse(data);
-  } catch (err) {
-    console.error('Text query error:', err);
-    showError(`Request failed: ${err.message}. Please try again.`);
-  }
+if (clearBtn) {
+  clearBtn.addEventListener('click', () => { 
+    queryInput.value = ''; 
+    setTranscript('Waiting for a voice or a typed question.'); 
+    answerBox.textContent = 'Your answer will land here. Ask about the indexed corpus and we’ll show you the receipts.'; 
+    answerBox.dataset.status = 'waiting'; 
+    requestIdEl.textContent = '—'; 
+    renderMetrics(null); 
+    sourcesGrid.innerHTML = '<div class="source-empty">No evidence yet · ask a question above to populate the board.</div>'; 
+    setStatus('WAITING'); 
+    updateState('idle');
+  });
 }
 
 // ── Audio Processing ────────────────────────────────────────
 async function processAudio(blob) {
   try {
     // Sarvam API strictly requires WAV/MP3 and does not support WebM.
-    // We convert the browser's WebM recording to a 16-bit PCM WAV Blob in the frontend.
     const wavBlob = await blobToWav(blob);
 
     const formData = new FormData();
@@ -130,11 +211,13 @@ async function processAudio(blob) {
     });
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    handleResponse(data);
+    await handleStream(res);
   } catch (err) {
     console.error('Pipeline error:', err);
-    showError(`Request failed: ${err.message}. Please try again.`);
+    setStatus('REQUEST FAILED', true);
+    answerBox.textContent = `Request failed: ${err.message}. Please try again.`;
+    answerBox.dataset.status = 'blocked';
+    updateState('declined');
   }
 }
 
@@ -187,189 +270,145 @@ async function blobToWav(blob) {
   return new Blob([buffer], { type: 'audio/wav' });
 }
 
-// ── Response Handler ────────────────────────────────────────
-function handleResponse(data) {
-  // Show transcript
-  if (data.transcript) {
-    transcriptText.textContent = data.transcript;
-    transcriptSection.classList.remove('hidden');
+// ── SSE Stream Handler ────────────────────────────────────────
+async function handleStream(res) {
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+  let eventType = 'message';
+  
+  answerBox.textContent = '';
+  answerBox.dataset.status = 'answered';
+  sourcesGrid.innerHTML = '';
+  renderMetrics(null);
+  
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    
+    buffer += decoder.decode(value, { stream: true });
+    
+    // Parse SSE lines
+    let lines = buffer.split('\n');
+    buffer = lines.pop(); 
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.startsWith('event: ')) {
+        eventType = line.substring(7).trim();
+      } else if (line.startsWith('data: ')) {
+        const dataStr = line.substring(6).trim();
+        if (dataStr) {
+          try {
+            const data = JSON.parse(dataStr);
+            processStreamEvent(eventType, data);
+          } catch (e) {
+            console.error('Failed to parse stream data:', dataStr, e);
+          }
+        }
+        eventType = 'message'; // reset
+      }
+    }
   }
-
-  // Update latency for this query
-  if (data.latency) {
-    latThis.textContent = `${Math.round(data.latency.rag_ms)}ms`;
-    showBreakdown(data.latency);
-  }
-
-  // Check guardrail
-  if (data.guardrail && !data.guardrail.passed) {
-    showDeclined(data);
-    setState('declined');
-  } else if (data.answer) {
-    showAnswer(data);
-    setState('answer');
-  } else {
-    showError('No answer generated.');
-  }
-
-  // Fetch live latency stats
-  fetchLatencyStats();
+  
+  updateState('answer');
 }
 
-// ── Show Answer ─────────────────────────────────────────────
-function showAnswer(data) {
-  answerText.textContent = data.answer;
-
-  // Citations
-  citationsEl.innerHTML = '';
-  if (data.citations && data.citations.length > 0) {
-    data.citations.forEach(c => {
-      const chip = document.createElement('span');
-      chip.className = 'citation-chip';
-      chip.textContent = c.passage_id;
-      chip.title = c.chunk_text || '';
-      citationsEl.appendChild(chip);
-    });
+function processStreamEvent(eventType, data) {
+  if (eventType === 'metadata') {
+    if (data.transcript) {
+      setTranscript(data.transcript);
+    }
+    setStatus('GENERATING ANSWER…');
+  } else if (eventType === 'chunk') {
+    answerBox.textContent += data.text;
+  } else if (eventType === 'end') {
+    renderSources(data.citations);
+    
+    let latencyData = {
+      total_latency_ms: data.latency?.total_ms || data.latency?.rag_ms || 0
+    };
+    renderMetrics(latencyData);
+    setStatus('ANSWERED WITH EVIDENCE');
+  } else if (eventType === 'error') {
+    setStatus('ERROR', true);
+    answerBox.textContent = data.error || 'An error occurred';
+    answerBox.dataset.status = 'blocked';
+    updateState('declined');
   }
-
-  // Strategy stats
-  strategyStats.innerHTML = '';
-  if (data.strategy_stats && data.strategy_stats.length > 0) {
-    data.strategy_stats.forEach(s => {
-      const dotClass = s.strategy === 'semantic' ? 'strategy-dot--semantic'
-        : s.strategy === 'sentence_window' ? 'strategy-dot--window'
-        : s.strategy === 'metadata_aware' ? 'strategy-dot--meta'
-        : '';
-      const chip = document.createElement('span');
-      chip.className = 'strategy-chip';
-      chip.innerHTML = `<span class="strategy-dot ${dotClass}"></span>${s.strategy}: ${s.win_count} (avg ${s.avg_score.toFixed(3)})`;
-      strategyStats.appendChild(chip);
-    });
-  }
-
-  declineCard.classList.add('hidden');
-  answerCard.classList.remove('hidden');
 }
 
-// ── Show Declined ───────────────────────────────────────────
-function showDeclined(data) {
-  const g = data.guardrail;
-  declineReason.textContent = g.reason || 'Query was declined by guardrails.';
+function formatMs(value) { return `${Number(value || 0).toFixed(1)} ms`; }
 
-  declineMeta.innerHTML = '';
-  if (g.score !== null && g.score !== undefined) {
-    declineMeta.innerHTML += `<span class="decline-score">Score: ${g.score.toFixed(4)}</span>`;
+function renderMetrics(result) {
+  if (!result) {
+    metricsContainer.innerHTML = '<div class="metric"><b>READY</b><span>total</span></div><div class="metric"><b>READY</b><span>retrieval</span></div><div class="metric"><b>READY</b><span>generation</span></div><div class="metric"><b>ON</b><span>guardrails</span></div>';
+    return;
   }
-  if (g.threshold !== null && g.threshold !== undefined) {
-    declineMeta.innerHTML += `<span class="decline-threshold">Threshold: ${g.threshold}</span>`;
-  }
-  if (g.status) {
-    declineMeta.innerHTML += `<span>${g.status}</span>`;
-  }
-
-  answerCard.classList.add('hidden');
-  declineCard.classList.remove('hidden');
-}
-
-// ── Show Breakdown ──────────────────────────────────────────
-function showBreakdown(latency) {
-  const items = [
-    { label: 'STT', value: latency.stt_ms },
-    { label: 'Embed', value: latency.embedding_ms },
-    { label: 'Retrieve', value: latency.retrieval_ms },
-    { label: 'Rerank', value: latency.rerank_ms },
-    { label: 'Generate', value: latency.generation_ms },
-    { label: 'Guard Pre', value: latency.guardrail_pre_ms },
-    { label: 'Guard Post', value: latency.guardrail_post_retrieval_ms },
-    { label: 'Ground Check', value: latency.guardrail_post_gen_ms },
-    { label: 'RAG Total', value: latency.rag_ms },
-    { label: 'Total', value: latency.total_ms },
+  
+  metricsContainer.replaceChildren();
+  const entries = [
+    ['total', result.total_latency_ms], 
+    ['retrieval', null], // Backend doesn't send detailed breakdown in this stream yet, using placeholder
+    ['generation', null], 
+    ['guardrails', null]
   ];
-
-  breakdownGrid.innerHTML = '';
-  items.forEach(item => {
-    if (item.value === undefined || item.value === null) return;
-    const valueClass = item.value < 50 ? 'breakdown-item__value--fast'
-      : item.value > 200 ? 'breakdown-item__value--slow'
-      : '';
-    const div = document.createElement('div');
-    div.className = 'breakdown-item';
-    div.innerHTML = `
-      <span class="breakdown-item__label">${item.label}</span>
-      <span class="breakdown-item__value ${valueClass}">${Math.round(item.value)}ms</span>
-    `;
-    breakdownGrid.appendChild(div);
+  
+  entries.forEach(([name, value]) => { 
+    const card = document.createElement('div'); 
+    card.className = 'metric'; 
+    const b = document.createElement('b'); 
+    b.textContent = value == null ? (name === 'guardrails' ? 'ON' : 'READY') : formatMs(value); 
+    const span = document.createElement('span'); 
+    span.textContent = name; 
+    card.append(b, span); 
+    metricsContainer.append(card); 
   });
-
-  breakdown.classList.remove('hidden');
 }
 
-// ── Show Error ──────────────────────────────────────────────
-function showError(message) {
-  declineReason.textContent = message;
-  declineMeta.innerHTML = '';
-  answerCard.classList.add('hidden');
-  declineCard.classList.remove('hidden');
-  setState('declined');
-}
-
-// ── State Machine ───────────────────────────────────────────
-function setState(newState) {
-  state = newState;
-
-  micBtn.classList.remove('recording');
-
-  switch (state) {
-    case 'idle':
-      micStatus.textContent = 'Tap to speak';
-      micStatus.className = 'mic-section__status';
-      break;
-
-    case 'listening':
-      micStatus.textContent = 'Listening... tap to stop';
-      micStatus.className = 'mic-section__status listening';
-      micBtn.classList.add('recording');
-      // Hide previous results
-      answerCard.classList.add('hidden');
-      declineCard.classList.add('hidden');
-      transcriptSection.classList.add('hidden');
-      breakdown.classList.add('hidden');
-      break;
-
-    case 'processing':
-      micStatus.textContent = 'Processing...';
-      micStatus.className = 'mic-section__status processing';
-      break;
-
-    case 'answer':
-    case 'declined':
-      micStatus.textContent = 'Tap to speak again';
-      micStatus.className = 'mic-section__status';
-      state = 'idle';  // Reset for next query
-      break;
+function renderSources(citations) {
+  sourcesGrid.replaceChildren();
+  if (!citations || !citations.length) { 
+    const empty = document.createElement('div'); 
+    empty.className = 'source-empty'; 
+    empty.textContent = 'No evidence cited · the guardrail chose not to answer.'; 
+    sourcesGrid.append(empty); 
+    return; 
   }
+  
+  citations.forEach((citation, index) => {
+    const tile = document.createElement('article'); 
+    tile.className = 'source-tile';
+    const top = document.createElement('div'); 
+    top.className = 'source-top';
+    const id = document.createElement('span'); 
+    id.className = 'source-id'; 
+    id.textContent = `[S${index + 1}]`; // Simplification
+    const score = document.createElement('span'); 
+    score.className = 'source-score'; 
+    score.textContent = Number(citation.score || 0).toFixed(4); // Add score if we had it, but standard citations from API might not have it. Will just show index.
+    if (citation.passage_id) {
+       id.textContent = citation.passage_id;
+    }
+    
+    top.append(id, score);
+    const strategy = document.createElement('div'); 
+    strategy.className = 'source-strategy'; 
+    strategy.textContent = citation.strategy || 'PASSAGE';
+    const text = document.createElement('p'); 
+    text.className = 'source-text'; 
+    text.textContent = citation.chunk_text || citation.text || '';
+    const foot = document.createElement('div'); 
+    foot.className = 'source-foot'; 
+    const parent = document.createElement('span'); 
+    parent.textContent = `PARENT —`; 
+    const meta = document.createElement('span'); 
+    meta.textContent = 'INDEXED'; 
+    foot.append(parent, meta);
+    
+    tile.append(top, strategy, text, foot); 
+    sourcesGrid.append(tile);
+  });
 }
 
-// ── Latency Stats Polling ───────────────────────────────────
-async function fetchLatencyStats() {
-  try {
-    const res = await fetch(`${API_BASE}/api/stats`);
-    if (!res.ok) return;
-    const stats = await res.json();
-
-    latP50.textContent = stats.p50_ms > 0 ? `${Math.round(stats.p50_ms)}ms` : '—';
-    latP70.textContent = stats.p70_ms > 0 ? `${Math.round(stats.p70_ms)}ms` : '—';
-    latP100.textContent = stats.p100_ms > 0 ? `${Math.round(stats.p100_ms)}ms` : '—';
-    latCount.textContent = stats.query_count || '0';
-  } catch {
-    // Silent fail — stats are nice-to-have
-  }
-}
-
-// Initial stats fetch
-fetchLatencyStats();
-// Refresh stats every 10 seconds
-setInterval(fetchLatencyStats, 10000);
-
-// ── Init ────────────────────────────────────────────────────
 console.log('🎙️ Voice RAG Pipeline — HH Goa 2026 · #RAGInGoa');

@@ -13,17 +13,19 @@ class Settings(BaseSettings):
     sarvam_api_key: str
     groq_api_key: str
 
-    # ── Language ──────────────────────────────────────────────
-    primary_language: str = "hi"
-
     # ── Retrieval ─────────────────────────────────────────────
     similarity_threshold: float = 0.55
     top_k: int = 10
 
-    # ── Generation ────────────────────────────────────────────
-    generation_model: str = "llama-3.3-70b-versatile"
-    max_gen_tokens: int = 256
+    # ── LLM Config ──────────────────────────────────────────────
+    llm_provider: str = "groq"
+    generation_model: str = "llama-3.1-8b-instant"
+    max_gen_tokens: int = 512
     gen_temperature: float = 0.1
+
+    # ── Web Search ────────────────────────────────────────────
+    web_search_provider: str = "tavily"
+    web_search_api_key: str = ""
 
     # ── Embeddings ────────────────────────────────────────────
     embedding_model: str = "intfloat/multilingual-e5-large"
@@ -48,6 +50,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "ignore"
 
 
 settings = Settings()
