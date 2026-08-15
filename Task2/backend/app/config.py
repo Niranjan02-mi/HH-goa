@@ -19,6 +19,17 @@ class Settings(BaseSettings):
     # ── Retrieval ─────────────────────────────────────────────
     similarity_threshold: float = 0.55
     top_k: int = 10
+    # BM25 (rank_bm25) does a pure-Python score pass over the whole corpus on
+    # every query -- measured at ~380ms P50 / 200k chunks, dwarfing FAISS.
+    # Off by default; flip on only once it's replaced with an indexed impl
+    # (e.g. bm25s) or your corpus is small enough that it's cheap again.
+    enable_bm25_hybrid: bool = False
+    # "flat" = exact brute-force (IndexFlatIP). Fine under ~50k vectors.
+    # "ivf"  = approximate (IndexIVFFlat) -- ~20x faster at 200k+ vectors,
+    # small recall trade-off. Needs enough vectors to train nlist clusters.
+    faiss_index_type: str = "flat"
+    faiss_nlist: int = 200
+    faiss_nprobe: int = 8
 
     # ── Generation ────────────────────────────────────────────
     generation_model: str = "llama-3.3-70b-versatile"
